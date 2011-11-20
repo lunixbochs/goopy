@@ -1,10 +1,7 @@
 package main
 
 import (
-	"bufio"
-	"fmt"
-	"os"
-	"strconv"
+	"reflect"
 )
 
 const (
@@ -68,26 +65,43 @@ const (
 type Object struct {
 	Type	int
 	Value	interface{}
+	//Attrs	map[string]*Object
 }
 
 type Func struct {
 	name 	string
 	Frame	*Frame
 }
+type NativeFunction func(VM *Machine, args chan *Object)
 
+func NewObject(o interface{}) *Object {
+	var typ int
+	switch o.(type) {
+		case bool: typ = BOOL
+		case int: typ = INT
+		case string: typ = STRING
+		case []*Object: typ = LIST
+		case map[*Object]*Object: typ = DICT
+		case NativeFunction: typ = FUNC
+		default: typ = NONE
+	}
+
+	return &Object{typ, o} //FIXME: init attrs
+}
 
 type Machine struct {
 	Globals		map[string]*Object
-	Builtins	map[string]*Object
+	//Builtins	map[string]*Object
+	Builtins 	*Builtins
 	Frames		[]*Frame // keeps track of the call stack
 	CurFrame 	int // starts at -1, ends at -1
 }
 
-func NewMachine() Machine{
-	m := Machine{make(map[string]*Object), make(map[string]*Object), make([]*Frame, 0), -1}
-	m.Builtins["print"] = &Object{FUNC, PRINT}
+func NewMachine() Machine {
+	m := Machine{make(map[string]*Object), &Builtins{}, make([]*Frame, 0), -1}
+	/*m.Builtins["print"] = &Object{FUNC, "print"}
 	m.Builtins["raw_input"] = &Object{FUNC, RAW_INPUT}
-	m.Builtins["int"] = &Object{FUNC, INT_FUNC}
+	m.Builtins["int"] = &Object{FUNC, INT_FUNC}*/
 	return m
 }
 
@@ -112,38 +126,8 @@ func (VM *Machine) Run(f *Frame) {
 
 func (VM *Machine) Call(f *Object, args chan *Object) {
 	switch f.Value.(type) {
-		case int: // we're dealing with a builtin wrapper
-			switch f.Value.(int) {
-				case PRINT:
-					for len(args) > 0 {
-						fmt.Print((<-args).Value, " ")
-					}
-					fmt.Println()
-					cf := VM.Frames[VM.CurFrame]
-					cf.Local[cf.RetLocal] = &Object{NONE, nil}
-					return
-				case RAW_INPUT:
-					b := bufio.NewReader(os.Stdin)
-					out, err := b.ReadBytes('\n')
-					if err == nil {
-						cf := VM.Frames[VM.CurFrame]
-						cf.Local[cf.RetLocal] = &Object{STRING, string(out[:len(out)-1])}
-						return
-					} else {
-						panic("reading from stdin failed")
-					}
-				case INT_FUNC:
-					s:= (<-args).Value.(string)
-					i, err := strconv.Atoi(s)
-					if err == nil {
-						cf := VM.Frames[VM.CurFrame]
-						cf.Local[cf.RetLocal] = &Object{INT, i}
-						return
-					} else {
-						fmt.Println(err)
-						panic("need to raise an exception here instead")
-					}
-			}
+		case NativeFunction: // we're dealing with a builtin wrapper
+			f.Value.(NativeFunction)(VM, args)
 		case Func: // this is a "real" function written in the interpreted language
 			VM.Frames = append(VM.Frames, f.Value.(Func).Frame)
 			VM.CurFrame++
@@ -152,15 +136,18 @@ func (VM *Machine) Call(f *Object, args chan *Object) {
 				cf.Local[i] = <-args
 			}
 	}
-	cf := VM.Frames[VM.CurFrame]
-	cf.Local[cf.RetLocal] = &Object{NONE, nil}
 }
 
 func (VM *Machine) Lookup(name string) (o *Object) {
 	if o = VM.Globals[name]; o != nil {
 		return o
-	} else if o = VM.Builtins[name]; o != nil {
-		return o
+	}
+	v := reflect.ValueOf(VM.Builtins)
+	//VM.Builtins.print(VM, make(chan *Object))
+	// fmt.Println(v.Kind(), v.MethodByName("Fprint"), VM, VM.Builtins)
+	fn := v.MethodByName("B_" + name)
+	if fn.IsValid() {
+		return fn.Call([]reflect.Value{})[0].Interface().(*Object)
 	} else {
 		panic("tried to lookup nonexistent name:  "+name)
 	}
@@ -267,7 +254,7 @@ func (f *Frame) Step() {
 
 func main() {
 	 //builtin function call test case
-	consts := []*Object{&Object{INT, 1}, &Object{INT, 2}}
+	/*consts := []*Object{&Object{INT, 1}, &Object{INT, 2}}
 	names := make([]string, 1)
 	names[0] = "print"
 	code := []Bytecode{
@@ -278,7 +265,7 @@ func main() {
 		{GET, 4, 0, 0},
 		{CALL, 0, 4, 0},
 		{ARGPUSH, 0, 0, LOCAL},
-		{CALL, 0, 4, 0}}
+		{CALL, 0, 4, 0}}*/
 	 // int, raw_input, IF test case
 	/*consts := []*Object{&Object{INT, 3}, &Object{STRING, "less than 3"}, &Object{STRING, "equal to 3"}, &Object{STRING, "greater than 3"}}
 	names := make([]string, 3)
@@ -311,7 +298,7 @@ func main() {
 		{CALL, 0, 5, 0},
 		{NOP, 0, 0, 0}}*/
 	// while loop test
-	/*consts := []*Object{&Object{INT, 10}, &Object{INT, 1}}
+	consts := []*Object{&Object{INT, 10}, &Object{INT, 1}}
 	names := make([]string, 1)
 	names[0] = "print"
 	code := []Bytecode{
@@ -323,7 +310,7 @@ func main() {
 		{SUB, 1, 1, 2},
 		{ARGPUSH, 0, 1, LOCAL},
 		{CALL, 0, 3, 0},
-		{JUMP, 0, 6, 1}}*/
+		{JUMP, 0, 6, 1}}
 	VM := NewMachine()
 
 	f := NewFrame(consts, names, code)
