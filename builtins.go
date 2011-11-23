@@ -7,10 +7,6 @@ import (
 	"strconv"
 )
 
-func NewFunction(o NativeFunction) *Object {
-	return NewObject(o);
-}
-
 type Builtins struct {}
 
 func (g *Builtins) B_print() *Object {

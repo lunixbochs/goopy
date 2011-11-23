@@ -30,4 +30,3 @@ func Bool(a *Object) bool {
 	}
 	return false
 }
-
