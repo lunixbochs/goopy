@@ -1,5 +1,9 @@
 package main
 
+import (
+	"fmt"
+)
+
 const (
 	NAME = iota
 	CONSTANT
@@ -79,16 +83,27 @@ func NewFrame(Const []*Object, Names []string, Code []Bytecode) *Frame{
 	return f
 }
 
-func (f *Frame) Math(op Op) {
+func (f *Frame) Math(op string) {
 	e := f.Code[f.Cur]
-	L := f.Local
-	f.Local[e.A] = op(L[e.B], L[e.C])
+	//push the operation's arguments and set the return location
+	f.RetLocal = e.A
+	f.Args <- f.Local[e.B]
+	f.Args <- f.Local[e.C]
+	//lookup the actual operation
+	//FIXME: on failure, try the __r*__ variant? raise exception?
+	opfunc, exists := f.Local[e.B].Attrs[op]
+	fmt.Println("preparing to call", op)
+	if !exists {
+		panic("no such operation, needs to raise TypeError")
+	}
+	f.VM.Call(opfunc, f.Args)
 	//fmt.Println("A, B and C are: ", L[e.A], L[e.B], L[e.C])
 }
 
 func (f *Frame) ArgPush(AB int, C byte) {
 	// fmt.Println(AB, C, f.Local[AB])
 	if len(f.Args) == cap(f.Args) {
+		//FIXME: dynamically make new channels with twice the size, or maybe use vectors?
 		panic("not enough args for everyone")
 	}
 	switch (C) {
@@ -105,12 +120,12 @@ func (f *Frame) Step() {
 	VM := f.VM
 	// fmt.Println(f.Cur, "e:  ", e, e.BC())
 	switch (e.I) {
-		case ADD: f.Math(Add)
-		case SUB: f.Math(Sub)
-		// case MUL: f.Math(Mul)
-		// case DIV: f.Math(Div)
-		// case MOD: f.Math(Mod)
-		// case POW: f.Math(Pow)
+		case ADD: f.Math("__add__")
+		case SUB: f.Math("__sub__")
+		case MUL: f.Math("__mul__")
+		case DIV: f.Math("__div__")
+		case MOD: f.Math("__mod__")
+		case POW: f.Math("__pow__")
 		// case BLSH: f.Math(LeftShift)
 		// case BRSH: f.Math(RightShift)
 		// case BAND: f.Math(BitAnd)
@@ -119,9 +134,9 @@ func (f *Frame) Step() {
 		// case BNOT: L[A] = BitNot(L[B])
 		// case CMP: f.Math(Compare)
 		// case NE: f.Math(NotEqual)
-		case EQ: f.Math(Equal)
-		//case LE: f.Math(LessEqual)
-		case LT: f.Math(LessThan)
+		case EQ: f.Math("__eq__")
+		case LE: f.Math("__le__")
+		case LT: f.Math("__lt__")
 		case GET: L[A] = VM.Lookup(f.Names[e.BC()])
 		/*case SET: VM.SetGlobal(f.Names[e.BC()], L[A])
 		case GETITEM: VM.GetItem(L[A], L[B], L[C])

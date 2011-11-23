@@ -16,7 +16,7 @@ func (g *Builtins) B_print() *Object {
 		}
 		fmt.Println()
 		cf := VM.Frames[VM.CurFrame]
-		cf.Local[cf.RetLocal] = &Object{NONE, nil}
+		cf.Local[cf.RetLocal] = NewObject(nil)
 		return
 	})
 }
@@ -40,7 +40,7 @@ func (g *Builtins) B_int() *Object {
 		i, err := strconv.Atoi(s)
 		if err == nil {
 			cf := VM.Frames[VM.CurFrame]
-			cf.Local[cf.RetLocal] = &Object{INT, i}
+			cf.Local[cf.RetLocal] = NewInt(i)
 			return
 		} else {
 			fmt.Println(err)

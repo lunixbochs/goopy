@@ -61,7 +61,7 @@ func (VM *Machine) Lookup(name string) (o *Object) {
 	} else {
 		panic("tried to lookup nonexistent name:  "+name)
 	}
-	return &Object{NONE, nil}
+	return NewObject(nil)
 }
 
 func main() {
@@ -79,7 +79,7 @@ func main() {
 		{ARGPUSH, 0, 0, LOCAL},
 		{CALL, 0, 4, 0}}*/
 	 // int, raw_input, IF test case
-	/*consts := []*Object{&Object{INT, 3}, &Object{STRING, "less than 3"}, &Object{STRING, "equal to 3"}, &Object{STRING, "greater than 3"}}
+	consts := []*Object{NewObject(3), NewObject("less than 3"), NewObject("equal to 3"), NewObject("greater than 3")}
 	names := make([]string, 3)
 	names[0] = "raw_input"
 	names[1] = "print"
@@ -108,9 +108,9 @@ func main() {
 		{ARGPUSH, 0, 3, CONSTANT},
 		{GET, 5, 0, 1},
 		{CALL, 0, 5, 0},
-		{NOP, 0, 0, 0}}*/
+		{NOP, 0, 0, 0}}
 	// while loop test
-	consts := []*Object{&Object{INT, 10}, &Object{INT, 1}}
+	/*consts := []*Object{NewObject(10), NewObject(1)}
 	names := make([]string, 1)
 	names[0] = "print"
 	code := []Bytecode{
@@ -122,7 +122,7 @@ func main() {
 		{SUB, 1, 1, 2},
 		{ARGPUSH, 0, 1, LOCAL},
 		{CALL, 0, 3, 0},
-		{JUMP, 0, 6, 1}}
+		{JUMP, 0, 6, 1}}*/
 	VM := NewMachine()
 
 	f := NewFrame(consts, names, code)
