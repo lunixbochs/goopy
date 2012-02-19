@@ -1,0 +1,150 @@
+4 arguments, A, B, C and D
+
+math:
+ADD rAB rC rD #locals[AB] = locals[C] + locals[D]
+SUB rAB rC rD #locals[AB] = locals[C] - locals[D]
+MUL rAB rC rD #locals[AB] = locals[C] * locals[D]
+DIV rAB rC rD #locals[AB] = locals[C] / locals[D]
+MOD rAB rC rD #locals[AB] = locals[C] % locals[D]
+POW rAB rC rD #locals[AB] = locals[C] ** locals[D]
+BLSH rAB rC rD #locals[AB] = locals[C] << locals[D]
+BRSH rAB rC rD #locals[AB] = locals[C] >> locals[D]
+BAND rAB rC rD #locals[AB] = locals[C] & locals[D]
+BOR rAB rC rD #locals[AB] = locals[C] | locals[D]
+BXOR rAB rC rD #locals[AB] = locals[C] ^ locals[D]
+BNOT rAB rCD #locals[AB] = ~locals[CD]
+
+comparison:
+CMP rAB rC rD # locals[AB] = cmp(locals[AB], locals[CD]) -1 if <, 0 if ==, 1 if >
+NE rAB rC rD #locals[AB] = locals[C] != locals[D]
+EQ rAB rC rD #locals[AB] = locals[C] == locals[D]
+LE rAB rC rD #locals[AB] = locals[C] <= locals[D]
+LT rAB rC rD #locals[AB] = locals[C] <  locals[D]
+
+variables:
+GET rAB rCD # locals[AB] = globals[json_names[CD]]
+SET rAB rCD # globals[json_names[AB]] = locals[CD]
+GETITEM rAB rC rD # locals[AB] = locals[C][D]
+SETITEM rAB rC rD # locals[AB][C] = locals[D]
+HASITEM rAB rC rD # locals[AB] = C in locals[D]
+GETATTR rA rB rCD # locals[A] = locals[B].<json_names[CD]>
+SETATTR rA rB rCD # locals[A].<json_names[CD]> = locals[B]
+HASATTR rAB rC rD # locals[AB] = locals[C] in locals[D]
+SWAP rAB rCD  # locals[AB], locals[CD] = locals[CD], locals[AB]
+DEL
+
+constants:
+CONST rAB rCD # locals[AB] = json_consts[CD]
+
+control flow:
+IF rAB # skip the next instruction if AB
+JUMP rABCD # jump to ABCD, fake signed
+ARGPUSH rAB rC # pushes AB onto the function argument stack from C, which is locals, consts, or globals
+CALL rAB rCD # locals[AB] = locals[CD]([]*Object)
+CATCH rA #sets up an except block at the beginning of try
+RETURN rA # returns A
+RAISE rA # pushes A to except stack
+
+TODO: exceptions, iterators
+
+exceptions go in the except stack
+except: replaces TOS with None
+finally: pops TOS and re-raises it if necessary
+
+on try/except/finally if they define except remove the exception, if they throw a new one, defer
+finally needs to maybe re-raise the exception at the end
+
+try CATCHES to except
+try does stuff
+try JUMPs to finally
+except CATCHes to finally
+except clears exception
+finally does not clear exception
+
+conditionals:
+	if a:
+		foo
+	else:
+		bar
+	
+	IF a
+	JUMP :el
+	foo
+	:el
+	bar
+	
+a, b = 1, 2
+c = a + b
+print(c)
+----------------
+{'const':[1, 2, None], 
+'names':['print'],
+'code':'
+CONST	1 0
+CONST	2 1
+ADD		3 0 1
+ARGPUSH 0 LOCAL
+GET		4 0
+CALL	0 4
+'
+}
+a = int(raw_input())
+if a < 3:
+	print('less than 3')
+elif a == 3:
+	print('equal to 3')
+else:
+	print('greater than 3')
+----------------
+{'const':[3, 'less than 3', 'equal to 3', 'greater than 3'],
+'names':['raw_input', 'print', 'int']
+'code':'
+GET		1 0
+CALL	2 1
+GET 	1 2
+ARGPUSH 2 LOCAL
+CALL 	2 1
+CONST 	3 0
+LT 		4 2 3
+IF 		4
+JUMP 	:1
+ARGPUSH	1 CONST
+GET 	5 1
+CALL 	0 5
+JUMP 	:2
+:1
+EQ 		4 2 3
+IF 		4
+JUMP 	:3
+ARGPUSH 2 CONST
+GET 	5 1
+CALL 	0 5
+JUMP 	:2
+:3
+ARGPUSH 3 CONST
+GET 	5 1
+CALL 	0 5
+:2
+'
+}
+x = 10
+while x:
+	x = x - 1
+	print(x)
+----------------
+{'const':[10, 1],
+'names':['print'],
+'code':'
+CONST 	1 0
+CONST 	2 1
+GET 	3 1
+:1
+IF 		1
+JUMP 	:2
+SUB 	1 1 2
+ARGPUSH 1 LOCAL
+CALL 	0 3
+JUMP :1
+:2
+'
+}
