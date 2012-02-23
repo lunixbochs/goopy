@@ -41,9 +41,9 @@ IF rAB # skip the next instruction if AB
 JUMP rABCD # jump to ABCD, fake signed
 ARGPUSH rAB rC # pushes AB onto the function argument stack from C, which is locals, consts, or globals
 CALL rAB rCD # locals[AB] = locals[CD]([]*Object)
-CATCH rA #sets up an except block at the beginning of try
-RETURN rA # returns A
-RAISE rA # pushes A to except stack
+CATCH rAB #sets up an except block at the beginning of try
+RETURN rAB # returns A
+RAISE rAB # pushes A to except stack
 
 TODO: exceptions, iterators
 

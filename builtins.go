@@ -4,15 +4,17 @@ import (
 	"fmt"
 	"bufio"
 	"os"
-	"strconv"
 )
 
-type Builtins struct {}
+type Builtins struct {
+	none	*Object
+	object	*Object
+}
 
 func (g *Builtins) B_print() *Object {
-	return NewFunction(func(VM *Machine, args chan *Object) {
-		for len(args) > 0 {
-			fmt.Print((<-args).Value, " ")
+	return NewFunction(func(VM *Machine, args []*Object) {
+		for _, x := range args {
+			fmt.Print(x.Value, " ")
 		}
 		fmt.Println()
 		cf := VM.Frames[VM.CurFrame]
@@ -21,8 +23,15 @@ func (g *Builtins) B_print() *Object {
 	})
 }
 
+func (g *Builtins) b_None() *Object {
+	if g.none == nil {
+		g.none = NewObject(nil)
+	}
+	return g.none
+}
+
 func (g *Builtins) B_raw_input() *Object {
-	return NewFunction(func(VM *Machine, args chan *Object) {
+	return NewFunction(func(VM *Machine, args []*Object) {
 		b := bufio.NewReader(os.Stdin)
 		out, err := b.ReadBytes('\n')
 		if err == nil {
@@ -34,16 +43,3 @@ func (g *Builtins) B_raw_input() *Object {
 		}})
 }
 
-func (g *Builtins) B_int() *Object {
-	return NewFunction(func(VM *Machine, args chan *Object) {
-		s := (<-args).Value.(string)
-		i, err := strconv.Atoi(s)
-		if err == nil {
-			cf := VM.Frames[VM.CurFrame]
-			cf.Local[cf.RetLocal] = NewInt(i)
-			return
-		} else {
-			fmt.Println(err)
-			panic("need to raise an exception here instead")
-		}})
-}

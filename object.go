@@ -1,6 +1,10 @@
 package main
 
-const (
+import (
+	// "fmt"
+)
+
+const ( //enumerate the builtin types
 	NONE = iota
 	BOOL
 	INT
@@ -8,12 +12,14 @@ const (
 	LIST
 	DICT
 	FUNC
+	TYPE
 )
 
 type Object struct {
 	Type	int
 	Value	interface{}
 	Attrs	map[string]*Object
+	Bases	[]*Object
 }
 
 type Func struct {
@@ -21,14 +27,14 @@ type Func struct {
 	Frame	*Frame
 }
 
-type NativeFunction func(VM *Machine, args chan *Object)
+type NativeFunction func(VM *Machine, args []*Object)
 
 func NewFunction(o NativeFunction) *Object {
 	return NewObject(o);
 }
 
-func MakeObject(typ int, o interface{}, attrs map[string]*Object)*Object {
-	return &Object{typ, o, attrs}
+func MakeObject(typ int, o interface{}, bases []*Object, attrs map[string]*Object)*Object {
+	return &Object{typ, o, attrs, bases}
 }
 
 func NewObject(o interface{}) *Object {
@@ -44,43 +50,30 @@ func NewObject(o interface{}) *Object {
 		default: typ = NONE
 	}
 
-	return MakeObject(typ, o, make(map[string]*Object))	
+	return MakeObject(typ, o, make([]*Object, 0), make(map[string]*Object))	
 }
 
-func Bool(a *Object) bool {
-	switch a.Type {
-		case BOOL: return a.Value.(bool)
-		case INT: return a.Value.(int) != 0
-		case NONE: return false
-		case STRING: return len(a.Value.(string)) > 0
-		case FUNC: return true
-		case LIST: return len(a.Value.([]*Object)) > 0
-		case DICT: return len(a.Value.(map[int]*Object)) > 0
+func (o *Object) GetAttribute(VM *Machine, name string) *Object {
+	for _, base := range o.Bases {
+		a := make([]*Object, 0)
+		a = append(a, o)
+		a = append(a, NewString(name))
+		// fmt.Println("about to RCall", *a[0])
+		ret := VM.RCall(base.Attrs["__getattribute__"], a)
+		if ret != nil {
+			return ret
+		}
 	}
-	return false
+	panic("attribute not found!")
 }
 
-func NewInt(i int) *Object {
-	math_proto := func(op func(a, b int) int) *Object{
-		return NewFunction(func(VM *Machine, args chan *Object) {
-			a := (<-args).Value.(int)
-			b_o := <-args
-			var b int
-			switch b_o.Type { //FIXME: add support for floats etc.
-				case INT: b = b_o.Value.(int)
-				default: panic("need to raise a TypeError about invalid args")
-			}
-			cf := VM.Frames[VM.CurFrame]
-			cf.Local[cf.RetLocal] = NewInt(op(a, b))
-	})}
-	attrs := make(map[string]*Object)
-	attrs["__add__"] = math_proto(func(a, b int) int {return a+b})
-	attrs["__sub__"] = math_proto(func(a, b int) int {return a-b})
-	attrs["__mul__"] = math_proto(func(a, b int) int {return a*b})
-	attrs["__div__"] = math_proto(func(a, b int) int {return a/b})
-	attrs["__mod__"] = math_proto(func(a, b int) int {return a%b})
-	attrs["__lt__"] = math_proto(func(a, b int) int { if a<b {return 1}; return 0 })
-	attrs["__le__"] = math_proto(func(a, b int) int { if a<=b {return 1}; return 0 })
-	attrs["__eq__"] = math_proto(func(a, b int) int { if a==b {return 1}; return 0 })
-	return MakeObject(INT, i, attrs)
+var real_object *Object = nil
+
+func SubclassObject() []*Object{
+	if real_object == nil {
+		real_object = &Object{}
+		real_object = NewObjectRoot(real_object)
+		// fmt.Println(real_object)
+	}
+	return []*Object{real_object}
 }

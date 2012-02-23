@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"reflect"
 )
 
@@ -36,7 +37,7 @@ func (VM *Machine) Run(f *Frame) {
 	}
 }
 
-func (VM *Machine) Call(f *Object, args chan *Object) {
+func (VM *Machine) Call(f *Object, args []*Object) {
 	switch f.Value.(type) {
 		case NativeFunction: // we're dealing with a builtin wrapper
 			f.Value.(NativeFunction)(VM, args)
@@ -45,9 +46,28 @@ func (VM *Machine) Call(f *Object, args chan *Object) {
 			VM.CurFrame++
 			cf := *VM.Frames[VM.CurFrame]
 			for i := 0; len(args) != 0; i++ {
-				cf.Local[i] = <-args
+				cf.Local[i] = args[i]
 			}
 	}
+}
+
+func (VM *Machine) RCall(f *Object, args []*Object) *Object{
+	ff := FakeFrame(VM)
+	VM.Frames = append(VM.Frames, ff)
+	VM.CurFrame++
+	VM.Call(f, args)
+	VM.CurFrame--
+	VM.Frames = VM.Frames[:VM.CurFrame+1]
+	ret := ff.Local[ff.RetLocal]
+	if ret != nil {
+		return ret
+	}
+	return VM.Lookup("None")
+}
+
+func (VM *Machine) Return(o *Object) {
+	f := VM.Frames[VM.CurFrame]
+	f.Local[f.RetLocal] = o
 }
 
 func (VM *Machine) Lookup(name string) (o *Object) {
@@ -56,6 +76,7 @@ func (VM *Machine) Lookup(name string) (o *Object) {
 	}
 	v := reflect.ValueOf(VM.Builtins)
 	fn := v.MethodByName("B_" + name)
+	fmt.Println("looked up", fn.Call([]reflect.Value{})[0].Interface().(*Object))
 	if fn.IsValid() {
 		return fn.Call([]reflect.Value{})[0].Interface().(*Object)
 	} else {
@@ -66,63 +87,63 @@ func (VM *Machine) Lookup(name string) (o *Object) {
 
 func main() {
 	 //builtin function call test case
-	/*consts := []*Object{&Object{INT, 1}, &Object{INT, 2}}
+	consts := []*Object{NewInt(3), NewInt(2)}
 	names := make([]string, 1)
 	names[0] = "print"
 	code := []Bytecode{
-		{CONST, 1, 0, 0},
-		{CONST, 2, 1, 0},
-		{ADD, 3, 1, 2},
-		{ARGPUSH, 0, 3, LOCAL},
-		{GET, 4, 0, 0},
-		{CALL, 0, 4, 0},
-		{ARGPUSH, 0, 0, LOCAL},
-		{CALL, 0, 4, 0}}*/
+		{CONST, 0, 1, 0, 0},
+		{CONST, 0, 2, 0, 1},
+		{ADD, 0, 3, 1, 2},
+		{ARGPUSH, 0, 3, LOCAL, 0},
+		{GET, 0, 4, 0, 0},
+		{CALL, 0, 0, 0, 4},
+		{ARGPUSH, 0, 0, LOCAL, 0},
+		{CALL, 0, 0, 0, 4}}
 	 // int, raw_input, IF test case
-	consts := []*Object{NewObject(3), NewObject("less than 3"), NewObject("equal to 3"), NewObject("greater than 3")}
+	/*consts := []*Object{NewInt(3), NewString("less than 3"), NewString("equal to 3"), NewString("greater than 3")}
 	names := make([]string, 3)
 	names[0] = "raw_input"
 	names[1] = "print"
 	names[2] = "int"
 	code := []Bytecode{
-		{GET, 1, 0, 0},
-		{CALL, 2, 1, 0},
-		{GET, 1, 0, 2},
-		{ARGPUSH, 0, 2, LOCAL},
-		{CALL, 2, 1, 0},
-		{CONST, 3, 0, 0},
-		{LT, 4, 2, 3},
-		{IF, 4, 0, 0},
-		{JUMP, 0, 4, 0},
-		{ARGPUSH, 0, 1, CONSTANT},
-		{GET, 5, 0, 1},
-		{CALL, 0, 5, 0},
-		{JUMP, 0, 10, 0},
-		{EQ, 4, 2, 3},
-		{IF, 4, 0, 0},
-		{JUMP, 0, 4, 0},
-		{ARGPUSH, 0, 2, CONSTANT},
-		{GET, 5, 0, 1},
-		{CALL, 0, 5, 0},
-		{JUMP, 0, 3, 0},
-		{ARGPUSH, 0, 3, CONSTANT},
-		{GET, 5, 0, 1},
-		{CALL, 0, 5, 0},
-		{NOP, 0, 0, 0}}
+		{GET, 0, 1, 0, 0},
+		{CALL, 0, 2, 1, 0},
+		{GET, 0, 1, 0, 2},
+		{ARGPUSH, 0, 2, LOCAL, 0},
+		{CALL, 0, 2, 1, 0},
+		{CONST, 0, 3, 0, 0},
+		{LT, 0, 4, 2, 3},
+		{IF, 0, 4, 0, 0},
+		{JUMP, 0, 0, 4, 0},
+		{ARGPUSH, 0, 1, CONSTANT, 0},
+		{GET, 0, 5, 0, 1},
+		{CALL, 0, 0, 5, 0},
+		{JUMP, 0, 0, 10, 0},
+		{EQ, 0, 4, 2, 3},
+		{IF, 0, 4, 0, 0},
+		{JUMP, 0, 0, 4, 0},
+		{ARGPUSH, 0, 2, CONSTANT, 0},
+		{GET, 0, 5, 0, 1},
+		{CALL, 0, 0, 5, 0},
+		{JUMP, 0, 0, 3, 0},
+		{ARGPUSH, 0, 3, CONSTANT, 0},
+		{GET, 0, 5, 0, 1},
+		{CALL, 0, 0, 5, 0},
+		{NOP, 0, 0, 0, 0}}*/
 	// while loop test
 	/*consts := []*Object{NewObject(10), NewObject(1)}
 	names := make([]string, 1)
 	names[0] = "print"
 	code := []Bytecode{
-		{CONST, 1, 0, 0},
-		{CONST, 2, 0 , 1},
-		{GET, 3, 0, 0},
-		{IF, 1, 0, 0},
-		{JUMP, 0, 4, 0},
-		{SUB, 1, 1, 2},
-		{ARGPUSH, 0, 1, LOCAL},
-		{CALL, 0, 3, 0},
-		{JUMP, 0, 6, 1}}*/
+		{CONST, 0, 1, 0, 0},
+		{CONST, 0, 2, 0 , 1},
+		{GET, 0, 3, 0, 0},
+		{IF, 0, 1, 0, 0},
+		{JUMP, 0, 0, 4, 0},
+		{SUB, 0, 1, 1, 2},
+		{ARGPUSH, 0, 1, LOCAL, 0},
+		{CALL, 0, 0, 3, 0},
+		{JUMP, 0, 0, 6, 1}}*/
 	VM := NewMachine()
 
 	f := NewFrame(consts, names, code)

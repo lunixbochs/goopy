@@ -6,6 +6,10 @@ import (
 )
 
 func (g *Builtins) B_object() *Object { // this represents python's 'object' type
+	return SubclassObject()[0]
+}
+
+func NewObjectRoot(ro *Object) *Object{
 	attrs := make(map[string]*Object)
 
 	// FIXME: implement a None singleton and return it in lots of these calls
@@ -70,7 +74,10 @@ func (g *Builtins) B_object() *Object { // this represents python's 'object' typ
 			}
 			VM.Return(NewBool(false))
 		})
-	return MakeObject(TYPE, "object", nil, attrs)
+	ro.Type = TYPE
+	ro.Value = "object"
+	ro.Attrs = attrs
+	return ro
 }
 
 func NewType(name string, bases []*Object, attrs map[string]*Object) *Object {

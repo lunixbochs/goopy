@@ -5,6 +5,11 @@ GOFILES=\
 		vm.go \
 		builtins.go \
 		object.go \
-		frame.go
+		frame.go \
+		types/int.go \
+		types/bool.go \
+		types/string.go \
+		types/type.go
+
 
 include $(GOROOT)/src/Make.cmd
