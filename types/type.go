@@ -26,22 +26,29 @@ func NewObjectRoot(ro *Object) *Object{
 	attrs["__getattribute__"] = NewFunction(func(VM *Machine, args []*Object){
 			self := args[0]
 			name := args[1].Value.(string)
-			// fmt.Println("value", self.Attrs[name])
+			for _, base := range append([]*Object{self}, self.Bases...) {
+				if base.Attrs[name] != nil {
+					VM.Return(base.Attrs[name])
+					return
+				}
+			}
 			VM.Return(self.Attrs[name])
 		})
 	attrs["__hash__"] = NewFunction(func(VM *Machine, args []*Object){
 			self := args[0]
 			// FIXME: !!!
-			VM.Return(NewInt(self.Value.(int)))
+			VM.Return(VM.NewInt(self.Value.(int)))
 			//VM.Return(NewInt(reflect.New(self).Addr().Interface().(int)))
 		})
 	attrs["__init__"] = NewFunction(func(VM *Machine, args []*Object){})
 	attrs["__new__"] = NewFunction(func(VM *Machine, args []*Object){
-			//FIXME: __new__ needs to actually do stuff
-			typ := args[0]
-			if typ.Type != TYPE {
-				panic("can't create a new instance of a non-type object")
-			}
+			class := args[0]
+			iargs := args[1:]
+			obj := MakeObject(OBJECT, 234, class.Bases, class.Attrs)
+			iargs = append([]*Object{obj}, iargs...)
+			// __init__ must not have a return value
+			VM.RCall(obj.GetAttribute(VM, "__init__"), iargs)
+			VM.Return(obj)
 		})
 	attrs["__reduce__"] = NewFunction(func(VM *Machine, args []*Object){
 			panic("pickling not implemented")
@@ -51,7 +58,7 @@ func NewObjectRoot(ro *Object) *Object{
 		})
 	attrs["__repr__"] = NewFunction(func(VM *Machine, args []*Object){
 			self := args[0]
-			name := self.Value.(string)
+			name := self.Value
 			VM.Return(NewString(fmt.Sprintf("<type '%s'>\n", name)))
 		})
 	attrs["__setattr__"] = NewFunction(func(VM *Machine, args []*Object){

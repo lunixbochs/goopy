@@ -97,6 +97,7 @@ func (f *Frame) Math(op string) {
 	opfunc := f.Local[e.C].GetAttribute(f.VM, op)
 	// fmt.Println("preparing to call", op)
 	f.VM.Call(opfunc, f.Args)
+	f.Args = make([]*Object, 0)
 	//fmt.Println("A, B and C are: ", L[e.A], L[e.B], L[e.C])
 }
 

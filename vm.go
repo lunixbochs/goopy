@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	// "fmt"
 	"reflect"
 )
 
@@ -14,7 +14,8 @@ type Machine struct {
 }
 
 func NewMachine() Machine {
-	m := Machine{make(map[string]*Object), &Builtins{}, make([]*Frame, 0), -1}
+	m := Machine{make(map[string]*Object), &Builtin, make([]*Frame, 0), -1}
+	Builtin.B_None = m.NewNone()
 	return m
 }
 
@@ -48,6 +49,13 @@ func (VM *Machine) Call(f *Object, args []*Object) {
 			for i := 0; len(args) != 0; i++ {
 				cf.Local[i] = args[i]
 			}
+		default:
+			fn := f.GetAttribute(VM, "__call__")
+			if fn != nil {
+				VM.Call(fn, args)
+			} else {
+				panic("tried to call a nil value")
+			}
 	}
 }
 
@@ -62,7 +70,7 @@ func (VM *Machine) RCall(f *Object, args []*Object) *Object{
 	if ret != nil {
 		return ret
 	}
-	return VM.Lookup("None")
+	return nil//VM.Lookup("None")
 }
 
 func (VM *Machine) Return(o *Object) {
@@ -74,26 +82,27 @@ func (VM *Machine) Lookup(name string) (o *Object) {
 	if o = VM.Globals[name]; o != nil {
 		return o
 	}
-	v := reflect.ValueOf(VM.Builtins)
-	fn := v.MethodByName("B_" + name)
-	fmt.Println("looked up", fn.Call([]reflect.Value{})[0].Interface().(*Object))
+	v := reflect.ValueOf(*VM.Builtins)
+	fn := v.FieldByName("B_" + name)
+	// fmt.Println("looked up", name, fn.Call([]reflect.Value{})[0].Interface().(*Object))
 	if fn.IsValid() {
-		return fn.Call([]reflect.Value{})[0].Interface().(*Object)
+		return fn.Interface().(*Object)
 	} else {
 		panic("tried to lookup nonexistent name:  "+name)
 	}
-	return NewObject(nil)
+	return VM.Lookup("None")
 }
 
 func main() {
 	 //builtin function call test case
-	consts := []*Object{NewInt(3), NewInt(2)}
+	VM := NewMachine()
+	consts := []*Object{VM.NewInt(3), VM.NewInt(2)}
 	names := make([]string, 1)
 	names[0] = "print"
 	code := []Bytecode{
 		{CONST, 0, 1, 0, 0},
 		{CONST, 0, 2, 0, 1},
-		{ADD, 0, 3, 1, 2},
+		{MUL, 0, 3, 1, 2},
 		{ARGPUSH, 0, 3, LOCAL, 0},
 		{GET, 0, 4, 0, 0},
 		{CALL, 0, 0, 0, 4},
@@ -144,7 +153,6 @@ func main() {
 		{ARGPUSH, 0, 1, LOCAL, 0},
 		{CALL, 0, 0, 3, 0},
 		{JUMP, 0, 0, 6, 1}}*/
-	VM := NewMachine()
 
 	f := NewFrame(consts, names, code)
 	VM.Run(f)

@@ -13,6 +13,7 @@ const ( //enumerate the builtin types
 	DICT
 	FUNC
 	TYPE
+	OBJECT
 )
 
 type Object struct {
@@ -41,7 +42,7 @@ func NewObject(o interface{}) *Object {
 	var typ int
 	switch o.(type) {
 		case bool: typ = BOOL
-		case int: return NewInt(o.(int))
+		//case int: return NewInt(o.(int))
 		case string: typ = STRING
 		case []*Object: typ = LIST
 		case map[*Object]*Object: typ = DICT
@@ -50,18 +51,24 @@ func NewObject(o interface{}) *Object {
 		default: typ = NONE
 	}
 
-	return MakeObject(typ, o, make([]*Object, 0), make(map[string]*Object))	
+	return MakeObject(typ, o, make([]*Object, 0), make(map[string]*Object))
+}
+
+func Container(o interface{}) *Object {
+	return MakeObject(NONE, o, make([]*Object, 0), make(map[string]*Object))	
 }
 
 func (o *Object) GetAttribute(VM *Machine, name string) *Object {
-	for _, base := range o.Bases {
+	for _, base := range append([]*Object{o}, o.Bases...) {
 		a := make([]*Object, 0)
 		a = append(a, o)
 		a = append(a, NewString(name))
 		// fmt.Println("about to RCall", *a[0])
-		ret := VM.RCall(base.Attrs["__getattribute__"], a)
-		if ret != nil {
-			return ret
+		if base.Attrs["__getattribute__"] != nil {
+			ret := VM.RCall(base.Attrs["__getattribute__"], a)
+			if ret != nil {
+				return ret
+			}
 		}
 	}
 	panic("attribute not found!")
@@ -77,3 +84,4 @@ func SubclassObject() []*Object{
 	}
 	return []*Object{real_object}
 }
+

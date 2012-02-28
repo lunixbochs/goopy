@@ -9,7 +9,8 @@ GOFILES=\
 		types/int.go \
 		types/bool.go \
 		types/string.go \
-		types/type.go
+		types/type.go \
+		types/none.go
 
 
 include $(GOROOT)/src/Make.cmd
